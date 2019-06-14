@@ -3,85 +3,85 @@
 #include <stdbool.h>
 #include "mpi.h"
 
+// função auxilixar para verificar a restrição de números consecutivos
 bool naoConsecutivo(int vetor[]) {
-	int i = 0;
-	while (i < 5) {
-		if (vetor[i] == vetor[i + 1]) {
-			return false;
-		}
-		++i;
-	}
-	return true;
+    int i = 0;
+    while (i < 5) {
+        if (vetor[i] == vetor[i + 1]) {
+            return false;
+        }
+        ++i;
+    }
+    return true;
 }
 
+// função auxiliar para verificar se a soma dos dígitos não são 7, 11 ou 13
 bool somaOk(int vetor[]) {
-	int i = 0, soma = 0;
-	while (i < 6) {
-		soma += vetor[i];
-		++i;
-	}
-	if ((soma != 7) && (soma != 11) && (soma != 13)) {
-		return true;
-	}
-	return false;
+    int i = 0, soma = 0;
+    while (i < 6) {
+        soma += vetor[i];
+        ++i;
+    }
+    if ((soma != 7) && (soma != 11) && (soma != 13)) {
+        return true;
+    }
+    return false;
 }
 
 int main(int argc, char **argv) {
-    int numero, proc, contadorFinal, subContador = 0, size, n = 1s000000;
+    int numero, processo, contadorFinal, subContador = 0, tamanho, n = 1s000000;
     
+    // inicializa o MPI
     MPI_Init(&argc, &argv);
-    
-    // size recebe a quantidade de processos pedidos
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    // tamanho recebe a quantidade de processos pedidos
+    MPI_Comm_size(MPI_COMM_WORLD, &tamanho);
 
     // intervalo é o tamanho do intervalo que cada processo vai executar
-    int intervalo = n / size;
+    int intervalo = n / tamanho;
     
     // define um identificador para cada processo
-    MPI_Comm_rank(MPI_COMM_WORLD, &proc);
+    MPI_Comm_rank(MPI_COMM_WORLD, &processo);
 
     // define onde o processo começa e termina sua execução
-    int inicio = (proc * intervalo) + 1, fim = (proc + 1) * intervalo;
+    int inicio = (processo * intervalo) + 1, fim = (processo + 1) * intervalo;
 
-    // caso a quantidade de processos seja ímpar, o último processo
-    // é incrementado para que todos os números sejam atendidos
-    if (proc == (size - 1)) {
-		--fim;
+	// decrementa o fim, pois iniciamos com um a mais para facilitar cálculos
+    if (processo == (tamanho - 1)) {
+        --fim;
     }
     
+    // se for o primeiro processo, ele pode partir de 100000, uma vez que
+    // o número não pode se iniciar com 0 de acordo com uma das restrições
+    if (processo == 0) {
+        inicio = 100000;
+    }
     
-    if (proc == 0) {
-		inicio = 100000;
-	}
-    
-    // primoAux incrementa quando encontra um primo, se ele for 2 e o
-    // valor da diferença entre o primo atual e o primo anterior for
-    // contadorFinal que o valor de "subContador", então atualizamos o valor deste
-    int primoAux = 0, primoAnterior;
-    
+    // o número é colocado em um vetor para representar os dígitos
+    // separadamente e então realizar a verificação das restrições
+    // pelas funções auxiliares
     for (numero = inicio; numero <= fim; ++numero) {
-		int vetor[6];
-		
-		int numeroAux = numero;
-		
-		int i = 5;
-		while (i >= 0) {
-			vetor[i] = numeroAux % 10;
-			numeroAux /= 10;
-			--i;
-		}
-		
-		if (naoConsecutivo(vetor) && somaOk(vetor)) {
-			++subContador;
-		}
-		
+        int vetor[6];
+        
+        int numeroAux = numero;
+        
+        int i = 5;
+        while (i >= 0) {
+            vetor[i] = numeroAux % 10;
+            numeroAux /= 10;
+            --i;
+        }
+        
+        if (naoConsecutivo(vetor) && somaOk(vetor)) {
+            ++subContador;
+        }
+        
     }
     
     // os sub-contadores são somados ao contadorFinal e colocados no processo 0
     MPI_Reduce(&subContador, &contadorFinal, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     
-    if (proc == 0) {
-        printf("contadorFinal = %d, rank = %d\n", contadorFinal, proc);
+    if (processo == 0) {
+        printf("contadorFinal = %d, processo = %d\n", contadorFinal, processo);
     }
     
     MPI_Finalize();
