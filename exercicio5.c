@@ -29,7 +29,7 @@ bool somaOk(int vetor[]) {
 }
 
 int main(int argc, char **argv) {
-    int numero, processo, contadorFinal, subContador = 0, tamanho, n = 1s000000;
+    int numero, processo, contadorFinal, subContador = 0, tamanho, n = 1000000;
     
     // inicializa o MPI
     MPI_Init(&argc, &argv);

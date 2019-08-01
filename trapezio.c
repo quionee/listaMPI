@@ -1,69 +1,69 @@
-
 #include <stdlib.h>
 #include <stdio.h>
 #include "mpi.h"
 #include <math.h>
-int quantidade_t = 14;
+
+int qtdTrapezios = 14;
 float a = 0;
 float b = 5;
 
-//funcao base, pode ser qualquer uma
+// função base, pode ser utilizada qualquer função para o cálculo
 float f(float x){ 
-	float return_val; 
-	return_val = x*x+2*x;  
-	return return_val; 
+	float valorFuncao; 
+	valorFuncao = x*x+2*x;  // exemplo dado no problema
+	
+	return valorFuncao; 
 } 
 
 int main(int argc, char **argv){
-	float h = (b-a)/quantidade_t; // calcula a altura
-	int i,  proc, nprocs, **num;
-	float subtotal, total;
+	int i,  processo, nProcessos, **num;
+	// calcula o tamanho da base
+	float h = (b-a)/qtdTrapezios; 
+	// a variável "subtotal" é usada para armazenar o valor função f(x)
+	// em cada processo, e a variável "integral" armazena o valor final da função
+	float subtotal, integral;
+
+	// inicializa o MPI
 	MPI_Init(&argc, &argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-	MPI_Comm_rank(MPI_COMM_WORLD, &proc);
-	// faz a razao de entre processadores e trapezios
-	int d = floor(quantidade_t/nprocs);
-	// o ultimo processo é um caso especial
-	if(proc == nprocs-1){
-		// verifica se todos é possivel que todos os processos calculem o mesmo numero de trapezios
-		if(quantidade_t % nprocs != 0){
-			// caso não seja possivel a distribuição igualitaria, o ultimo processo faz os sobressalentes
-			// a variavel tam calcula a quantidade de tais trapezios
-			int tam = quantidade_t - (d*nprocs);
-			// faz o calculo dos trapezios do ultimo processo, ja com o aumento
-			for(int aux = proc*d;aux < ((proc+1)*d)+tam;++aux){
-				subtotal += f((h*(aux+1))+a);
-			}
+	// tamanho recebe a quantidade de processos pedidos
+	MPI_Comm_size(MPI_COMM_WORLD, &nProcessos);
+	// define um identificador para cada processo
+	MPI_Comm_rank(MPI_COMM_WORLD, &processo);
+
+	// intervalo é o tamanho do intervalo que cada processo vai executar
+	int intervalo = floor(qtdTrapezios/nProcessos);
+	
+
+	if(processo == nProcessos-1){
+		// caso o número de processos não consiga atender igualmente o número 
+		// de trapézios, o ultimo processo trata uma maior quantidade
+		int tamanhoAux = 0;
+		if(qtdTrapezios % nProcessos != 0){
+			tamanhoAux = qtdTrapezios - (intervalo * nProcessos);
+			
 		}
-		// caso seja possivel calcula normalmente
-		else{
-				// faz o calculo normal
-				for(int aux = proc*d;aux < ((proc+1)*d);++aux){
-					//printf("%i,%i",aux,proc);
-					subtotal += f((h*(aux+1))+a);
-					//printf("%f",h);
-					//printf("\n");
-				}
-		}
-	// todos os outros processadores calculam os trapezios normalmente
-	} else{
-		for(int aux = proc*d;aux < ((proc+1)*d);++aux){
-		//printf("%i,%i",aux,proc);
-		subtotal += f((h*(aux+1))+a);
-		//printf("%f",h);
-		//printf("\n");
+		for(int x = processo * intervalo; x < ((processo + 1) * intervalo) + tamanhoAux; ++x){
+			subtotal += f((h * (x + 1)) + a);
 		}
 	}
-	// soma todos os subtotais
-MPI_Reduce(&subtotal,&total,1,MPI_FLOAT,MPI_SUM,0,MPI_COMM_WORLD);
-  if (proc==0) {
-	  // o processo zero faz as somas que não sâo paralelizadas
-	  total += ((f(a)+f(b))/2);
-	  total -= f(b);
-	  total = total *h;
-	  printf("com %i trapezoides, nossa estimativa da integral de %f a %f é = %f  ", quantidade_t,a,b,total );
-	  printf("\n");	
-  }
-  MPI_Finalize();
-  return 0;
+	else {
+		for(int x = processo * intervalo; x < ((processo + 1) * intervalo); ++x){
+				subtotal += f((h * (x + 1)) + a);
+		}
+	}
+	
+	// os sub-totais são somados a variável "integral" e colocados no processo 0
+	MPI_Reduce(&subtotal,&integral,1,MPI_FLOAT,MPI_SUM,0,MPI_COMM_WORLD);
+	
+	if (processo==0) {
+		// o processo zero faz as somas que não foram paralelizadas
+		integral += ((f(a)+f(b))/2);
+		// é necessário retirar o último, pois calcula uma vez mais
+		integral -= f(b);
+		integral = integral * h;
+		printf("com %i trapezios, nossa estimativa da integral de %f a %f é = %f  ", qtdTrapezios,a,b,integral );
+		printf("\n");	
+	}
+	MPI_Finalize();
+	return 0;
 }
